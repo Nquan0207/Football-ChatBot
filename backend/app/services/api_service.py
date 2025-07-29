@@ -25,7 +25,7 @@ class GeminiService:
     async def generate_response(
         self,
         messages: List[ChatMessage],
-        temperature: float = 0.7,
+        temperature: float = 0.2,
         max_tokens: int = 1000
     ) -> str:
         """Generate response using Google Gemini Flash via threadpool"""

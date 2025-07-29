@@ -4,7 +4,7 @@ import uuid
 from typing import List, Optional
 from datetime import datetime
 from app.models.chat import ChatMessage, ChatResponse, MessageRole, ChatRequest
-from app.services.openai_service import OpenAIService
+from app.services.api_service import GeminiService
 from app.services.rag_service import RAGService
 import logging
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class ChatService:
     def __init__(self):
-        self.openai_service = OpenAIService()
+        self.ai_service = GeminiService()
         self.rag_service = RAGService()
         self.conversation_history = {}  # In production, use Redis or database
     
@@ -30,17 +30,20 @@ class ChatService:
             if request.use_rag:
                 context = await self.rag_service.get_context_for_query(request.message)
             
+            # Get conversation history for the session
+            history = self.conversation_history.get(session_id, [])
+            
             # Generate response
             if context and request.use_rag:
-                response_text = await self.openai_service.generate_response_with_context(
+                response_text = await self.ai_service.generate_response_with_context(
                     request.message, context
                 )
             else:
-                # Create conversation history
-                messages = [
+                # Add current message to history
+                messages = history + [
                     ChatMessage(role=MessageRole.USER, content=request.message)
                 ]
-                response_text = await self.openai_service.generate_response(messages)
+                response_text = await self.ai_service.generate_response(messages)
             
             # Calculate processing time
             processing_time = time.time() - start_time

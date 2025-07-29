@@ -1,12 +1,18 @@
 import os
 import asyncio
-from typing import List, Optional
+import logging
+from typing import List
+
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import Chroma
-from langchain.document_loaders import TextLoader, DirectoryLoader
+from langchain.document_loaders import (
+    TextLoader,
+    PyPDFLoader,
+    Docx2txtLoader,
+)
+
 from app.core.config import settings
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -27,92 +33,91 @@ class RAGService:
     def _initialize_vector_db(self):
         """Initialize or load existing vector database"""
         try:
-            if os.path.exists(self.vector_db_path):
-                self.vector_db = Chroma(
-                    persist_directory=self.vector_db_path,
-                    embedding_function=self.embeddings
-                )
-                logger.info("Loaded existing vector database")
-            else:
-                self.vector_db = Chroma(
-                    persist_directory=self.vector_db_path,
-                    embedding_function=self.embeddings
-                )
-                logger.info("Created new vector database")
+            self.vector_db = Chroma(
+                persist_directory=self.vector_db_path,
+                embedding_function=self.embeddings
+            )
+            logger.info(
+                "Loaded existing vector database"
+                if os.path.exists(self.vector_db_path)
+                else "Created new vector database"
+            )
         except Exception as e:
             logger.error(f"Error initializing vector database: {e}")
             raise
     
     async def add_documents(self, file_paths: List[str]) -> bool:
-        """Add documents to the vector database"""
+        """Add .txt, .pdf, .docx files to the vector database"""
         try:
-            documents = []
+            raw_docs = []
+
+            for path in file_paths:
+                if os.path.isfile(path):
+                    raw_docs.extend(self._load_file(path))
+                elif os.path.isdir(path):
+                    # walk directory to find supported extensions
+                    for root, _, files in os.walk(path):
+                        for fname in files:
+                            full = os.path.join(root, fname)
+                            raw_docs.extend(self._load_file(full))
             
-            for file_path in file_paths:
-                if os.path.isfile(file_path):
-                    loader = TextLoader(file_path)
-                    documents.extend(loader.load())
-                elif os.path.isdir(file_path):
-                    loader = DirectoryLoader(file_path, glob="**/*.txt")
-                    documents.extend(loader.load())
-            
-            if not documents:
+            if not raw_docs:
                 logger.warning("No documents found to add")
                 return False
-            
-            # Split documents into chunks
-            chunks = self.text_splitter.split_documents(documents)
-            
-            # Add to vector database
+
+            # Split into chunks
+            chunks = self.text_splitter.split_documents(raw_docs)
+
+            # Add & persist
             self.vector_db.add_documents(chunks)
             self.vector_db.persist()
-            
+
             logger.info(f"Added {len(chunks)} chunks to vector database")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error adding documents: {e}")
             return False
-    
-    async def search_similar(self, query: str, k: int = 5) -> List[str]:
-        """Search for similar documents"""
+
+    def _load_file(self, file_path: str):
+        """Dispatch loader based on file extension"""
+        ext = file_path.lower().split('.')[-1]
         try:
-            if not self.vector_db:
-                logger.warning("Vector database not initialized")
+            if ext == "txt":
+                loader = TextLoader(file_path)
+            elif ext == "pdf":
+                loader = PyPDFLoader(file_path)
+            elif ext in ("docx", "doc"):
+                loader = Docx2txtLoader(file_path)
+            else:
+                # skip unsupported
                 return []
-            
+            return loader.load()
+        except Exception as e:
+            logger.error(f"Failed to load {file_path}: {e}")
+            return []
+
+    async def search_similar(self, query: str, k: int = 5) -> List[str]:
+        try:
             results = self.vector_db.similarity_search(query, k=k)
             return [doc.page_content for doc in results]
-            
         except Exception as e:
             logger.error(f"Error searching similar documents: {e}")
             return []
-    
+
     async def get_context_for_query(self, query: str, k: int = 3) -> List[str]:
-        """Get relevant context for a query"""
-        try:
-            similar_docs = await self.search_similar(query, k=k)
-            return similar_docs
-            
-        except Exception as e:
-            logger.error(f"Error getting context: {e}")
-            return []
-    
+        return await self.search_similar(query, k)
+
     def get_database_stats(self) -> dict:
-        """Get vector database statistics"""
         try:
             if not self.vector_db:
                 return {"total_documents": 0, "status": "not_initialized"}
-            
-            collection = self.vector_db._collection
-            count = collection.count()
-            
+            count = self.vector_db._collection.count()
             return {
                 "total_documents": count,
                 "status": "active",
-                "embedding_model": "sentence-transformers/all-MiniLM-L6-v2"
+                "embedding_model": self.embeddings.model_name
             }
-            
         except Exception as e:
             logger.error(f"Error getting database stats: {e}")
-            return {"total_documents": 0, "status": "error"} 
+            return {"total_documents": 0, "status": "error"}
