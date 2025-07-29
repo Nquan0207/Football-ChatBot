@@ -1,5 +1,5 @@
 from .chat_service import ChatService
 from .rag_service import RAGService
-from .openai_service import OpenAIService
+from .api_service import GeminiService
 
-__all__ = ["ChatService", "RAGService", "OpenAIService"] 
+__all__ = ["ChatService", "RAGService", "GeminiService"]

@@ -1,34 +1,39 @@
-# FastAPI and Server
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.4.2  # Using an older version with pre-built wheels
-pydantic-settings==2.1.0
-python-multipart==0.0.6
-httpx==0.25.2
+# Core Dependencies
+fastapi
+uvicorn
+python-dotenv
+httpx
+email-validator
 
-# Authentication and Security
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-python-dotenv==1.0.0
+# Pydantic
+pydantic
+pydantic-settings
+python-multipart
+
+python-jose[cryptography]
+passlib[bcrypt]
 
 # Database
-sqlalchemy==2.0.23
-alembic==1.13.1
-psycopg2-binary==2.9.10
+psycopg2-binary
+sqlalchemy
+alembic
 
-# AI and Language Processing
-shapely==2.0.7
-google-cloud-aiplatform>=1.36.0
-langchain==0.0.350
-langchain-google-genai>=0.0.4
-chromadb==0.4.18
-sentence-transformers==2.2.2
-google-generativeai>=0.3.0
+# Document Processing
+python-docx
+pypdf2
+docx2txt
 
-# Caching and Task Queue
-redis==5.0.1
-celery==5.3.4
+redis
+celery
+
+google-generativeai
+transformers
+
+# Vector Storage & RAG
+chromadb
+langchain
+langchain-google-genai
 
 # Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
+pytest
+pytest-asyncio
