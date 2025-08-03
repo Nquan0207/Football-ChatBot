@@ -1,3 +1,4 @@
+# app/core/logging.py
 import logging
 import sys
 from app.core.config import settings
@@ -15,4 +16,7 @@ def setup_logging():
     
     # Set specific loggers
     logging.getLogger("uvicorn").setLevel(logging.INFO)
-    logging.getLogger("fastapi").setLevel(logging.INFO) 
+    logging.getLogger("fastapi").setLevel(logging.INFO)
+
+# add this so other modules can import `logger` directly
+logger = logging.getLogger("app")

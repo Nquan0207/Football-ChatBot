@@ -4,13 +4,13 @@ import logging
 from typing import List
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import Chroma
-from langchain.document_loaders import (
-    TextLoader,
-    PyPDFLoader,
-    Docx2txtLoader,
-)
+from langchain_huggingface import HuggingFaceEmbeddings
+
+from langchain_chroma import Chroma
+
+
+from langchain_community.document_loaders import TextLoader, PyPDFLoader, Docx2txtLoader
+
 
 from app.core.config import settings
 

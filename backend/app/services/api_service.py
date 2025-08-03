@@ -1,9 +1,10 @@
+from google import genai
+from google.genai import types
+import os
 import asyncio
 import time
-from typing import List
 import logging
-
-import google.generativeai as genai
+from typing import List
 
 from app.core.config import settings
 from app.models.chat import ChatMessage, MessageRole
@@ -12,15 +13,14 @@ logger = logging.getLogger(__name__)
 
 class GeminiService:
     def __init__(self):
-        # Cấu hình SDK
-        if settings.GOOGLE_API_KEY:
-            genai.configure(api_key=settings.GOOGLE_API_KEY)
+        api_key = settings.effective_gemini_api_key
+        # Tạo client: nếu dùng API key (Gemini Developer API)
+        if api_key:
+            self.client = genai.Client(api_key=api_key)
         else:
-            # nếu dùng credential file, đặt GOOGLE_APPLICATION_CREDENTIALS env var
-            genai.configure()
-
-        # model có thể là "gemini-flash" hoặc "gemini-pro"
-        self.model = getattr(settings, "GEMINI_MODEL", "gemini-flash")
+            # fallback: dùng env vars / Vertex AI credentials
+            self.client = genai.Client()
+        self.model = getattr(settings, "GEMINI_MODEL", "gemini-2.5-pro")
 
     async def generate_response(
         self,
@@ -28,34 +28,35 @@ class GeminiService:
         temperature: float = 0.2,
         max_tokens: int = 1000
     ) -> str:
-        """Generate response using Google Gemini Flash via threadpool"""
-        # Chuẩn bị payload cho Gemini
-        genai_messages = [
-            {"author": msg.role.value, "content": msg.content}
-            for msg in messages
-        ]
+        prompt_parts = []
+        for msg in messages:
+            role = msg.role.value.capitalize()
+            prompt_parts.append(f"{role}: {msg.content}")
+        prompt = "\n".join(prompt_parts)
 
         start = time.time()
         loop = asyncio.get_running_loop()
 
         def sync_call():
-            resp = genai.chat.completions.create(
+            response = self.client.models.generate_content(
                 model=self.model,
-                messages=genai_messages,
-                temperature=temperature,
-                max_output_tokens=max_tokens
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=temperature,
+                    max_output_tokens=max_tokens,
+                ),
             )
-            return resp.candidates[0].content
+            return response.text
 
         try:
             answer = await loop.run_in_executor(None, sync_call)
             elapsed = time.time() - start
             logger.info(f"Gemini response generated in {elapsed:.2f}s")
             return answer
-
         except Exception as e:
             logger.error(f"Error generating Gemini response: {e}")
             raise
+
 
     async def generate_response_with_context(
         self,
@@ -64,8 +65,6 @@ class GeminiService:
         temperature: float = 0.2,
         max_tokens: int = 1000
     ) -> str:
-        """Generate response with RAG context via Gemini"""
-        # Tạo system message
         context_text = "\n".join(context)
         system_content = (
             "You are a helpful AI assistant. Use the following context to answer the user's question:\n\n"

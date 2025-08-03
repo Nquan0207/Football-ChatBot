@@ -26,7 +26,7 @@ docx2txt
 redis
 celery
 
-google-generativeai
+//google-generativeai
 transformers
 
 # Vector Storage & RAG
@@ -37,3 +37,10 @@ langchain-google-genai
 # Testing
 pytest
 pytest-asyncio
+
+#more dependencies
+motor
+sentence-transformers
+langchain-huggingface
+langchain-chroma
+google-genai
