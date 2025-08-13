@@ -6,6 +6,7 @@ from datetime import datetime
 from app.models.chat import ChatMessage, ChatResponse, MessageRole, ChatRequest
 from app.services.api_service import GeminiService
 from app.services.rag_service import RAGService
+from app.utils.db import get_db
 import logging
 
 logger = logging.getLogger(__name__)
@@ -13,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 class ChatService:
     def __init__(self):
+        self.db = get_db()
         self.ai_service = GeminiService()
         self.rag_service = RAGService()
         self.conversation_history = {}  # In production, use Redis or database

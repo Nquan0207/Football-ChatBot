@@ -20,13 +20,12 @@ class GeminiService:
             genai.configure()
 
         # model có thể là "gemini-flash" hoặc "gemini-pro"
-        self.model = getattr(settings, "GEMINI_MODEL", "gemini-flash")
+        self.model = getattr(settings, "GEMINI_MODEL", "gemini-2.5-pro")
 
     async def generate_response(
         self,
         messages: List[ChatMessage],
         temperature: float = 0.2,
-        max_tokens: int = 1000
     ) -> str:
         """Generate response using Google Gemini Flash via threadpool"""
         # Chuẩn bị payload cho Gemini
@@ -43,7 +42,6 @@ class GeminiService:
                 model=self.model,
                 messages=genai_messages,
                 temperature=temperature,
-                max_output_tokens=max_tokens
             )
             return resp.candidates[0].content
 
@@ -62,7 +60,6 @@ class GeminiService:
         user_message: str,
         context: List[str],
         temperature: float = 0.2,
-        max_tokens: int = 1000
     ) -> str:
         """Generate response with RAG context via Gemini"""
         # Tạo system message
@@ -78,4 +75,4 @@ class GeminiService:
             ChatMessage(role=MessageRole.USER, content=user_message)
         ]
 
-        return await self.generate_response(messages, temperature, max_tokens)
+        return await self.generate_response(messages, temperature)
